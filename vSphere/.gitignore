@@ -54,3 +54,5 @@ Thumbs.db
 # ---------------------------------------
 *.log
 tmp/
+
+bootstrap/config/bootstrap.xml
