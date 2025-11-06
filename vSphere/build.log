@@ -1,7 +1,0 @@
-│ Error: error sending customization spec: Customization of the guest operating system is not supported due to the given reason:
-│
-│   with vsphere_virtual_machine.paloalto,
-│   on main.tf line 45, in resource "vsphere_virtual_machine" "paloalto":
-│   45: resource "vsphere_virtual_machine" "paloalto" {
-│
-
