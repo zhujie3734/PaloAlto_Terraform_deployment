@@ -1,5 +1,5 @@
 type=static
-ip-address=10.198.64.94
-netmask=255.255.255.192
-default-gateway=10.198.64.65
+ip-address=192.168.1.1
+netmask=255.255.255.0
+default-gateway=192.168.1.2
 dns-primary=8.8.8.8
