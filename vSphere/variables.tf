@@ -60,15 +60,13 @@ variable "memsize" {
   description = "The memory size for the template VM in MB"
 }
 
-variable "network_mgmt" {}
 
-
-#variable "network_adapter_config" {
-#  type = object({
-#    network      = string
-#    network_card = string
-#  })
-#}
+variable "network_interfaces" {
+  type = list(object({
+    network_name      = string
+    network_adapter   = option(string, vmxnet3)
+  }))
+}
 
 
 #variable "cdrom_type" {

@@ -12,8 +12,9 @@ data "vsphere_compute_cluster" "cluster" {
   datacenter_id = data.vsphere_datacenter.dc.id
 }
 
-data "vsphere_network" "mgmt" {
-  name          = var.network_mgmt
+data "vsphere_network" "networks" {
+  for_each =  to_set([ for nic in var.network_interfaces: nic.network_name ])
+  name          = each.key
   datacenter_id = data.vsphere_datacenter.dc.id
 }
 
@@ -54,9 +55,12 @@ resource "vsphere_virtual_machine" "paloalto" {
   memory           = var.memsize
   guest_id         = data.vsphere_virtual_machine.template.guest_id
 
-  network_interface {
-    network_id   = data.vsphere_network.mgmt.id
-    adapter_type = "vmxnet3"
+  dynamic "network_interface" {
+    for_each = var.network_interfaces
+    content {
+      network_id   = data.vsphere_network.networks[network_interface.value.name].id
+      adapter_type = "vmxnet3"
+    }
   }
 
   disk {

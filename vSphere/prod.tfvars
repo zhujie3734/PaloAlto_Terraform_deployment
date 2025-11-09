@@ -12,4 +12,19 @@ vm_name           = "vApp-PA-test"
 vcpu_nums = 4
 #vcpu_per_core           = 4
 memsize      = 8192
-network_mgmt = "Mgmt-64"
+network_interfaces = [
+  {
+    network_name = "Mgmt-63"
+    adapter_type = "vmxnet3"
+  },
+  {
+    network_name = "DMZ-26"
+  },
+  {
+    network_name = "DMZ-25"
+  },
+  {
+    network_name = "DMZ-22"
+  }
+
+]
