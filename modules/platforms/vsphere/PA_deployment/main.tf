@@ -1,0 +1,137 @@
+terraform {
+  required_providers {
+    vsphere = {
+      source  = "hashicorp/vsphere"
+      version = "~> 2.5"
+    }
+  }
+}
+
+data "vsphere_datacenter" "dc" {
+  name = var.placement.datacenter
+}
+
+data "vsphere_datastore" "ds" {
+  name          = var.placement.datastore
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_compute_cluster" "cluster" {
+  name          = var.placement.cluster
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_network" "networks" {
+  for_each      = { for nic in local.nics : nic.network_name => nic }
+  name          = each.key
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+resource "null_resource" "build_bootstrap_iso" {
+  count = local.bootstrap_enabled ? 1 : 0
+
+  triggers = {
+    build_token = local.build_token
+    dir_hash    = filesha256("${local.bootstrap_dir}/config/init-cfg.txt")
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-lc"]
+    command = <<-EOT
+      set -euo pipefail
+
+      test -d "${local.bootstrap_dir}"
+
+      rm -f "${local.iso_local}"
+
+      mkisofs -o "${local.iso_local}" -iso-level 4 -J -R -V "bootstrap" -graft-points .="${local.bootstrap_dir}"
+    EOT
+  }
+}
+
+resource "null_resource" "delete_existing_iso" {
+  count = (local.bootstrap_enabled && local.delete_existing_iso) ? 1 : 0
+
+  depends_on = [null_resource.build_bootstrap_iso]
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-lc"]
+    command = <<-EOT
+      set -euo pipefail
+
+      if ! command -v govc >/dev/null 2>&1; then
+        echo "govc not installed. Install: sudo apt-get install -y govc"
+        exit 1
+      fi
+
+      export GOVC_URL='${var.vcenter.server}'
+      export GOVC_USERNAME='${var.vcenter.user}'
+      export GOVC_PASSWORD='${var.vcenter.password}'
+      export GOVC_INSECURE=1
+      export GOVC_DATACENTER='${var.placement.datacenter}'
+
+      govc datastore.rm -ds='${var.placement.datastore}' '${local.datastore_iso_path}' || true
+    EOT
+  }
+}
+
+resource "vsphere_file" "bootstrap_iso" {
+  count = local.bootstrap_enabled ? 1 : 0
+
+  depends_on = [
+    null_resource.build_bootstrap_iso,
+    null_resource.delete_existing_iso
+  ]
+
+  datacenter       = var.placement.datacenter
+  datastore        = var.placement.datastore
+  source_file      = local.iso_local
+  destination_file = local.datastore_iso_path
+}
+
+data "vsphere_virtual_machine" "template" {
+  name          = var.template
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+resource "vsphere_virtual_machine" "pa" {
+  name             = var.name
+  folder           = var.placement.folder
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.ds.id
+
+  num_cpus = local.shape.cpu
+  memory   = local.shape.memoryMB
+
+  guest_id  = data.vsphere_virtual_machine.template.guest_id
+  scsi_type = data.vsphere_virtual_machine.template.scsi_type
+
+  clone {
+    template_uuid = data.vsphere_virtual_machine.template.id
+  }
+
+  dynamic "network_interface" {
+    for_each = local.nics
+    iterator = nic
+    content {
+      network_id   = data.vsphere_network.networks[nic.value.network_name].id
+      adapter_type = nic.value.network_adapter
+    }
+  }
+
+  disk {
+    label            = "disk0"
+    size             = local.shape.diskGB
+    thin_provisioned = true
+  }
+
+  dynamic "cdrom" {
+    for_each = local.bootstrap_enabled ? [1] : []
+    content {
+      datastore_id = data.vsphere_datastore.ds.id
+      path         = local.datastore_iso_path
+    }
+  }
+
+  depends_on = [vsphere_file.bootstrap_iso]
+}
