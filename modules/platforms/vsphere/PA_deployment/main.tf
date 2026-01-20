@@ -37,56 +37,32 @@ resource "null_resource" "build_bootstrap_iso" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command = <<-EOT
-      set -euo pipefail
+    command = <<EOT
+  set -euo pipefail
 
-      test -d "${local.bootstrap_dir}"
+  test -d "${local.bootstrap_dir}"
 
-      rm -f "${local.iso_local}"
+  rm -f "${local.iso_local}"
 
-      mkisofs -o "${local.iso_local}" -iso-level 4 -J -R -V "bootstrap" -graft-points .="${local.bootstrap_dir}"
+  mkisofs -o "${local.iso_local}" -iso-level 4 -J -R -V "bootstrap" -graft-points .="${local.bootstrap_dir}"
     EOT
   }
 }
 
-resource "null_resource" "delete_existing_iso" {
-  count = (local.bootstrap_enabled && local.delete_existing_iso) ? 1 : 0
-
-  depends_on = [null_resource.build_bootstrap_iso]
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-lc"]
-    command = <<-EOT
-      set -euo pipefail
-
-      if ! command -v govc >/dev/null 2>&1; then
-        echo "govc not installed. Install: sudo apt-get install -y govc"
-        exit 1
-      fi
-
-      export GOVC_URL='${var.vcenter.server}'
-      export GOVC_USERNAME='${var.vcenter.user}'
-      export GOVC_PASSWORD='${var.vcenter.password}'
-      export GOVC_INSECURE=1
-      export GOVC_DATACENTER='${var.placement.datacenter}'
-
-      govc datastore.rm -ds='${var.placement.datastore}' '${local.datastore_iso_path}' || true
-    EOT
-  }
-}
 
 resource "vsphere_file" "bootstrap_iso" {
-  count = local.bootstrap_enabled ? 1 : 0
-
-  depends_on = [
-    null_resource.build_bootstrap_iso,
-    null_resource.delete_existing_iso
-  ]
-
   datacenter       = var.placement.datacenter
   datastore        = var.placement.datastore
   source_file      = local.iso_local
   destination_file = local.datastore_iso_path
+  
+  depends_on = [
+    null_resource.build_bootstrap_iso,
+  ]
+  lifecycle {
+    replace_triggered_by = [null_resource.build_bootstrap_iso]
+  }
+
 }
 
 data "vsphere_virtual_machine" "template" {
@@ -103,8 +79,8 @@ resource "vsphere_virtual_machine" "pa" {
   num_cpus = local.shape.cpu
   memory   = local.shape.memoryMB
 
-  guest_id  = data.vsphere_virtual_machine.template.guest_id
-  scsi_type = data.vsphere_virtual_machine.template.scsi_type
+  #guest_id  = data.vsphere_virtual_machine.template.guest_id
+  #scsi_type = data.vsphere_virtual_machine.template.scsi_type
 
   clone {
     template_uuid = data.vsphere_virtual_machine.template.id
@@ -125,12 +101,9 @@ resource "vsphere_virtual_machine" "pa" {
     thin_provisioned = true
   }
 
-  dynamic "cdrom" {
-    for_each = local.bootstrap_enabled ? [1] : []
-    content {
+  cdrom {
       datastore_id = data.vsphere_datastore.ds.id
-      path         = local.datastore_iso_path
-    }
+      path         = vsphere_file.bootstrap_iso.destination_file
   }
 
   depends_on = [vsphere_file.bootstrap_iso]
