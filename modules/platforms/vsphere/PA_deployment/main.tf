@@ -31,37 +31,27 @@ resource "null_resource" "build_bootstrap_iso" {
   count = local.bootstrap_enabled ? 1 : 0
 
   triggers = {
-    build_token = local.build_token
-    dir_hash    = filesha256("${local.bootstrap_dir}/config/init-cfg.txt")
+    always_run = timestamp()
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command = <<EOT
-  set -euo pipefail
-
-  test -d "${local.bootstrap_dir}"
-
-  rm -f "${local.iso_local}"
-
-  mkisofs -o "${local.iso_local}" -iso-level 4 -J -R -V "bootstrap" -graft-points .="${local.bootstrap_dir}"
-    EOT
+    command = <<EOF
+      rm -f "${local.iso_local}"
+      mkisofs -o "${local.iso_local}" -iso-level 4 -l -J -R -V "bootstrap" -graft-points .="${local.bootstrap_dir}"
+    EOF
   }
 }
 
 
 resource "vsphere_file" "bootstrap_iso" {
+  count = local.bootstrap_enabled ? 1 : 0
   datacenter       = var.placement.datacenter
   datastore        = var.placement.datastore
   source_file      = local.iso_local
   destination_file = local.datastore_iso_path
   
-  depends_on = [
-    null_resource.build_bootstrap_iso,
-  ]
-  lifecycle {
-    replace_triggered_by = [null_resource.build_bootstrap_iso]
-  }
+  depends_on = [null_resource.build_bootstrap_iso]
 
 }
 
@@ -78,9 +68,7 @@ resource "vsphere_virtual_machine" "pa" {
 
   num_cpus = local.shape.cpu
   memory   = local.shape.memoryMB
-
-  #guest_id  = data.vsphere_virtual_machine.template.guest_id
-  #scsi_type = data.vsphere_virtual_machine.template.scsi_type
+  guest_id  = data.vsphere_virtual_machine.template.guest_id
 
   clone {
     template_uuid = data.vsphere_virtual_machine.template.id
@@ -99,11 +87,12 @@ resource "vsphere_virtual_machine" "pa" {
     label            = "disk0"
     size             = local.shape.diskGB
     thin_provisioned = true
+    controller_type  = "scsi"
   }
 
   cdrom {
-      datastore_id = data.vsphere_datastore.ds.id
-      path         = vsphere_file.bootstrap_iso.destination_file
+    datastore_id = data.vsphere_datastore.ds.id
+    path         = vsphere_file.bootstrap_iso[0].destination_file
   }
 
   depends_on = [vsphere_file.bootstrap_iso]
