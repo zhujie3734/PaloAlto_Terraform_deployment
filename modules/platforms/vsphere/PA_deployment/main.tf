@@ -36,6 +36,7 @@ resource "null_resource" "build_bootstrap_iso" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
+    #<<EOF instead of -<<EOF to ensure iso format, preventing bootstrap failure
     command = <<EOF
       rm -f "${local.iso_local}"
       mkisofs -o "${local.iso_local}" -iso-level 4 -l -J -R -V "bootstrap" -graft-points .="${local.bootstrap_dir}"
