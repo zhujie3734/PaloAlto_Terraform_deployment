@@ -27,3 +27,39 @@ module "vsphere_pa" {
     password = var.vcenter_password
   }
 }
+
+module "palo_stack" {
+  source = "../../modules/palo/stack"
+
+  palo = {
+    mgmt = {
+      ip = var.panos_mgmt_ip
+      username = var.panos_username
+      password = var.panos_password
+    }
+  
+
+  network = {
+    interfaces = {
+      untrust = { name = "ethernet1/1", mode = "static", ip = "xxx.x.x.x"}
+      trust = { name = "ethernet1/1", mode = "static", ip = "xxx.x.x.x"}
+    }
+  
+
+    zones = {
+        untrust = { name = "untrust", bind = ["untrust"] }
+        trust   = { name = "trust",   bind = ["trust"] }
+        vpn     = { name = "vpn",     bind = ["vpn"] } # vpn 的 bind 由 stack 自动补齐 tunnel interfaces
+      }
+    }
+
+  vpn = {
+      ipsec = {
+        tunnels = [
+          { name="tgw-1", peer_ip=var.tgw_peer1, psk=var.tgw_psk1 },
+          { name="tgw-2", peer_ip=var.tgw_peer2, psk=var.tgw_psk2 },
+        ]
+      }
+    }
+  }
+}
