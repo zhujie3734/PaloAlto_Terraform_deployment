@@ -8,5 +8,9 @@ ip = optional(string)
 
 
 variable "vr_name" {
-type = string
+  type = string
+}
+
+variable "location" {
+  type = any
 }

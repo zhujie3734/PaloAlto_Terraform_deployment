@@ -1,4 +1,13 @@
 locals {
+    location = (
+    try(var.target.vsys, null) != null ? { vsys = { name = var.target.vsys.name } } :
+    try(var.target.device_group, null) != null ? { device_group = { name = var.target.device_group.name } } :
+    try(var.target.template, null) != null ? { template = { name = var.target.template.name } } :
+    try(var.target.template_stack, null) != null ? { template_stack = { name = var.target.template_stack.name } } :
+    try(var.target.shared, null) != null ? { shared = var.target.shared } :
+    { vsys = { name = "vsys1" } }
+  )
+
   default_ike_profile   = "ike-default"
   default_ipsec_profile = "ipsec-default"
   default_dpd_interval  = 10

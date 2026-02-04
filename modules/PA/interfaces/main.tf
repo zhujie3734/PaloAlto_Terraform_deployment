@@ -1,28 +1,35 @@
-locals {
-# interfaces map(role=>{name,mode,ip}) 变成 map(ifname=>obj)
-by_ifname = {
-for role, v in var.interfaces : v.name => v
+terraform {
+      required_providers {
+          panos = {
+              source = "PaloAltoNetworks/panos"
+              version = "2.0.8"
+          }
+      }
 }
+
+
+locals {
+  location = {
+    vsys = {
+      name = "vsys1"
+    }
+  }
+
+  by_ifname = {
+    for role, v in var.interfaces : v.name => v
+ }
 }
 
 
 resource "panos_ethernet_interface" "this" {
-for_each = local.by_ifname
+  for_each = local.by_ifname
+  location = local.location
 
+  name = each.key
+  layer3 = {}
+  ha = { }
 
-vsys = "vsys1"
-name = each.key
-mode = "layer3"
-
-
-# 静态 or DHCP
-enable_dhcp = (try(each.value.mode, "static") == "dhcp")
-
-
-# static_ips 是 list(string)
-static_ips = (try(each.value.mode, "static") == "static" && try(each.value.ip, null) != null) ? [each.value.ip]: []
-
-lifecycle {
+  lifecycle {
 create_before_destroy = true
-}
+  }
 }

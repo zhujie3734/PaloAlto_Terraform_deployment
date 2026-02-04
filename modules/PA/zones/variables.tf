@@ -4,3 +4,7 @@ name = string
 bind_resolved = list(string)
 }))
 }
+
+variable "location" {
+  type = any
+}

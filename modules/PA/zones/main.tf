@@ -1,10 +1,19 @@
+ terraform {
+     required_providers {
+          panos = {
+             source = "PaloAltoNetworks/panos"
+              version = "2.0.8"
+        }
+     }
+ }
+
+
 resource "panos_zone" "this" {
   for_each = var.zones
 
   name = each.value.name
   mode = "layer3"
-
-  # 注意：pan.dev 教程里 zone 资源就是 interfaces = [...]
+  location = var.location
   interfaces = each.value.bind_resolved
 
   enable_user_id = false

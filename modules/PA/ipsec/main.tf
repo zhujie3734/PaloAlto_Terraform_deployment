@@ -1,3 +1,13 @@
+ terraform {
+   required_providers {
+          panos = {
+              source = "PaloAltoNetworks/panos"
+              version = "2.0.8"
+          }
+      }
+  }
+
+
 locals {
   tunnels = { for t in var.tunnels : t.name => t }
 }
@@ -8,7 +18,7 @@ resource "panos_tunnel_interface" "this" {
 
   vsys = "vsys1"
   name = each.value.tunnel_if
-
+  location = var.location
   # tunnel interface inside IP
   static_ips = [each.value.local_tunnel_ip]
 
@@ -30,7 +40,7 @@ resource "panos_ike_gateway" "this" {
   peer_ip    = each.value.peer_ip
   interface  = "ethernet1/1"    # 你可以后面改成从 stack 传 untrust_ifname 进来
   # local_ip = "203.0.113.10"   # 如果需要指定本地出接口 IP
-
+  location = var.location
   authentication {
     pre_shared_key = each.value.psk
   }

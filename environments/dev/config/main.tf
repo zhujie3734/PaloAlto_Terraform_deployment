@@ -1,7 +1,8 @@
 module "palo_stack" {
-source = "../../../modules/palo/stack"
+  source = "../../../modules/PA/stack"
 
-palo = var.palo
-  
+  target   = var.target
+  palo     = var.palo
+  features = var.features
 }
 

@@ -2,23 +2,17 @@ variable "palo" {
 description = "High-level intent object for Palo Alto stack"
 type = object({
 
-  mgmt = object({
-    ip = string
-    username = string
-    password = string
-  })
-
   network = object({
     virtual_router = string
     interfaces = map(object({
-      name = string # e.g. ethernet1/1
+      name = string
       mode = optional(string, "static") # static | dhcp
       ip = optional(string) # CIDR when static
       }))
 
 
     zones = map(object({
-      name = string # zone name in PAN-OS
+      name = string
       bind = list(string) # list of interface ROLE keys (e.g. ["trust","untrust"])
       }))
   })
@@ -71,4 +65,19 @@ type = object({
     }))
   }), null)
   })
+}
+
+variable "features" {
+  type = object({
+    interfaces = optional(bool, true)
+    zones      = optional(bool, false)
+    ipsec      = optional(bool, false)
+    bgp        = optional(bool, false)
+    policies   = optional(bool, false)
+  })
+  default = {}
+}
+
+variable "target" {
+  type = any
 }

@@ -3,6 +3,7 @@ type = bool
 description = "Enable BGP configuration"
 }
 
+variable "vr_interfaces" {}
 
 variable "vr_name" {
 type = string
@@ -42,4 +43,8 @@ variable "advertise_cidrs" {
 type = list(string)
 description = "CIDRs to advertise to TGW over BGP"
 default = []
+}
+
+variable "location" {
+  type = any
 }

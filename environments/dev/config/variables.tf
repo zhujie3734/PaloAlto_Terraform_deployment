@@ -1,12 +1,23 @@
-# PAN-OS provider 连接
-variable "panos_mgmt_ip"  { type = string }
+variable "panos_mgmt_ip" { type = string }
 variable "panos_username" { type = string }
-variable "panos_password" { 
-  type = string
-  sensitive = true 
-  }
+variable "panos_password" {
+  type      = string
+  sensitive = true
+}
 
-# 你的“意图数据”——唯一入口对象
+variable "target" {
+  type = object({
+    vsys = optional(object({
+      name = string}), null)
+
+    device_group = optional(object({ name = string}), null)
+    template = optional(object({ name = string}), null)
+    template_stack = optional(object({ name = string}), null)
+    shared = optional(bool, null)
+ })
+}
+
+
 variable "palo" {
   type = object({
     network = object({
@@ -27,17 +38,17 @@ variable "palo" {
     vpn = object({
       ipsec = object({
         tunnels = list(object({
-          name       = string
-          peer_ip    = string  # AWS tunnel outside (public) IP
-          psk        = string
+          name    = string
+          peer_ip = string # AWS tunnel outside (public) IP
+          psk     = string
           # TGW BGP inside tunnel IP（AWS 提供 /30 或 /31，写成 CIDR）
           local_tunnel_ip = string # e.g. "169.254.10.2/30"
           peer_tunnel_ip  = string # e.g. "169.254.10.1/30"
 
           # 可选覆盖项（不填走默认）
-          ike_profile    = optional(string)
-          ipsec_profile  = optional(string)
-          dpd_interval   = optional(number)
+          ike_profile   = optional(string)
+          ipsec_profile = optional(string)
+          dpd_interval  = optional(number)
         }))
       })
 
@@ -56,13 +67,18 @@ variable "palo" {
         name   = string
         from   = string
         to     = string
-        src    = list(string)  # CIDR or address-object names
+        src    = list(string) # CIDR or address-object names
         dst    = list(string)
-        app    = list(string)  # ["any"] for MVP
-        svc    = list(string)  # ["application-default"] or ["any"]
-        action = string        # "allow"|"deny"
+        app    = list(string) # ["any"] for MVP
+        svc    = list(string) # ["application-default"] or ["any"]
+        action = string       # "allow"|"deny"
         log    = optional(bool, true)
       }))
     }), null)
   })
+}
+
+variable "features" {
+  type    = any
+  default = {}
 }

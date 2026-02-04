@@ -1,3 +1,11 @@
+ terraform {
+      required_providers {
+          panos = {
+              source = "PaloAltoNetworks/panos"
+              version = "2.0.8"
+          }
+      }
+  }
 
 resource "panos_security_policy_rules" "this" {
 count = length(var.security_rules) > 0 ? 1 : 0

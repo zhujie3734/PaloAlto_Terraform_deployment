@@ -19,3 +19,8 @@ ipsec_profile = string
 dpd_interval = number
 }))
 }
+
+
+variable "location" {
+type = any
+}
